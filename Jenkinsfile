@@ -1,17 +1,17 @@
 pipeline {
-    agent { label 'Jenkins-Agent' }
+    agent { label 'ssh-agent' }
     tools {
         jdk 'Java17'
         maven 'Maven3'
     }
     environment {
 	    APP_NAME = "register-app-pipeline"
-            RELEASE = "1.0.0"
-            DOCKER_USER = "ashfaque9x"
-            DOCKER_PASS = 'dockerhub'
-            IMAGE_NAME = "${DOCKER_USER}" + "/" + "${APP_NAME}"
-            IMAGE_TAG = "${RELEASE}-${BUILD_NUMBER}"
-	    JENKINS_API_TOKEN = credentials("JENKINS_API_TOKEN")
+        RELEASE = "1.0.0"
+        DOCKER_USER = "dlbears"
+        DOCKER_PASS = 'dockerhub-credentials'
+        IMAGE_NAME = "${DOCKER_USER}" + "/" + "${APP_NAME}"
+        IMAGE_TAG = "${RELEASE}-${BUILD_NUMBER}"
+	    //JENKINS_API_TOKEN = credentials("JENKINS_API_TOKEN")
     }
     stages{
         stage("Cleanup Workspace"){
@@ -22,7 +22,7 @@ pipeline {
 
         stage("Checkout from SCM"){
                 steps {
-                    git branch: 'main', credentialsId: 'github', url: 'https://github.com/Ashfaque-9x/register-app'
+                    git branch: 'main', credentialsId: 'github-credentials', url: 'https://github.com/Ashfaque-9x/register-app'
                 }
         }
 
@@ -42,18 +42,18 @@ pipeline {
        stage("SonarQube Analysis"){
            steps {
 	           script {
-		        withSonarQubeEnv(credentialsId: 'jenkins-sonarqube-token') { 
+		        withSonarQubeEnv(credentialsId: 'sonarqube-token') {
                         sh "mvn sonar:sonar"
 		        }
-	           }	
+	           }
            }
        }
 
        stage("Quality Gate"){
            steps {
                script {
-                    waitForQualityGate abortPipeline: false, credentialsId: 'jenkins-sonarqube-token'
-                }	
+                    waitForQualityGate abortPipeline: false, credentialsId: 'sonarqube-token'
+                }
             }
 
         }
@@ -77,7 +77,7 @@ pipeline {
        stage("Trivy Scan") {
            steps {
                script {
-	            sh ('docker run -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image ashfaque9x/register-app-pipeline:latest --no-progress --scanners vuln  --exit-code 0 --severity HIGH,CRITICAL --format table')
+	               sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}"
                }
            }
        }
@@ -90,7 +90,7 @@ pipeline {
                }
           }
        }
-
+/*
        stage("Trigger CD Pipeline") {
             steps {
                 script {
@@ -99,17 +99,17 @@ pipeline {
             }
        }
     }
-
     post {
        failure {
-             emailext body: '''${SCRIPT, template="groovy-html.template"}''', 
-                      subject: "${env.JOB_NAME} - Build # ${env.BUILD_NUMBER} - Failed", 
+             emailext body: '''${SCRIPT, template="groovy-html.template"}''',
+                      subject: "${env.JOB_NAME} - Build # ${env.BUILD_NUMBER} - Failed",
                       mimeType: 'text/html',to: "ashfaque.s510@gmail.com"
       }
       success {
-            emailext body: '''${SCRIPT, template="groovy-html.template"}''', 
-                     subject: "${env.JOB_NAME} - Build # ${env.BUILD_NUMBER} - Successful", 
+            emailext body: '''${SCRIPT, template="groovy-html.template"}''',
+                     subject: "${env.JOB_NAME} - Build # ${env.BUILD_NUMBER} - Successful",
                      mimeType: 'text/html',to: "ashfaque.s510@gmail.com"
-      }      
+      }
    }
+*/
 }
